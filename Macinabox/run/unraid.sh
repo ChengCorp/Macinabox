@@ -215,7 +215,7 @@ makeopencore() {
             echo "No custom OpenCore .iso.gz file found, using stock version"
 
             # location of stock in container
-            file=$(ls /config/bootloader/OpenCore*.iso.gz 2>/dev/null)
+            file=$(ls /config/bootloader/opencore-osx-proxmox-vm.iso.gz 2>/dev/null)
 
             if [ -n "$file" ]; then
                 echo "Extracting stock OpenCore from $file"
