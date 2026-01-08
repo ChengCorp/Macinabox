@@ -1,0 +1,79 @@
+services:
+  macinabox:
+    image: ghcr.io/<github username>/macinabox:latest
+    container_name: macinabox
+    privileged: true
+    network_mode: bridge
+    
+    environment:
+      # Are you fully compliant with Apple's EULA? (YES/NO)
+      # Set to YES only if running on Apple hardware
+      - OKTORUN=YES
+      
+      # Operating System Version
+      # Options: Sequoia, Sonoma, Ventura, Monterey, Big Sur, Catalina, Mojave, High Sierra
+      - flavour=Sequoia
+      
+      # Custom VM Name (leave blank to use OS name)
+      - CUSTOMNAME=macOS
+      
+      # Vdisk Type (raw or qcow2)
+      - vdisktype=qcow2
+      
+      # vDisk Size (e.g., 256G)
+      - vdisksize=256G
+      
+      # Delete and replace OpenCore (yes/no)
+      - replaceopencore=yes
+      
+      # Default NIC type
+      # Options: virtio-net, e1000-82545em, virtio, vmxnet3
+      - overridenic=virtio-net
+      
+      # CPU arguments for QEMU
+      # Options: Skylake-Server, Penryn, host
+      - CPUARGS=host,vendor=GenuineIntel,+hypervisor,+invtsc,kvm=on,+fma,+avx,+avx2,+aes,+ssse3,+sse4_2,+popcnt,+sse4a,+bmi1,+bmi2
+      
+      # Macinabox version (do not change)
+      - WHATVERSION=5
+    
+    volumes:
+      # VM Images Location
+      - /mnt/user/domains/:/domains
+      
+      # ISOs Share Location
+      - /mnt/user/isos/:/isos
+      
+      # Appdata Location
+      - /mnt/user/appdata/macinabox:/config
+      
+      # VM icons location
+      - /usr/local/emhttp/plugins/dynamix.vm.manager/templates/images:/icons
+      
+      # Unraid VM icons host location
+      - /usr/local/emhttp/plugins/dynamix.vm.manager/templates/images/:/unraid_vm_icons
+      
+      # NVRAM location
+      - /etc/libvirt/qemu/nvram/:/etc/libvirt/qemu/nvram/
+      
+      # Unraid domain config
+      - /boot/config/domain.cfg:/vm/domain.cfg
+      
+      # Libvirt location
+      - /var/run/libvirt:/var/run/libvirt
+      
+      # Docker socket
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Host system paths for notifications
+      - /usr/lib64:/host/usr/lib64
+      - /usr/lib:/host/usr/lib
+      - /lib64:/host/lib64
+      - /lib:/host/lib
+      - /usr/bin:/host/usr/bin
+      - /usr/local/emhttp/webGui/scripts/:/host/usr/local/emhttp/webGui/scripts/
+      - /usr/local/emhttp/webGui/include/:/host/usr/local/emhttp/webGui/include/
+      - /tmp/notifications:/host/tmp/notifications
+      - /boot/config/plugins/dynamix/:/host/boot/config/plugins/dynamix/
+    
+    restart: unless-stopped
