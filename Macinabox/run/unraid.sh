@@ -216,7 +216,8 @@ makeopencore() {
 
             # location of stock in container
             # $bootloader (set in the template / compose environment) selects which stock
-            # bootloader to use; default keeps upstream OpenCore build for Unraid
+            # OpenCore build to use. The default supports Sonoma and earlier; set
+            # opencore-osx-proxmox-vm.iso.gz for macOS Sequoia.
             stock_bootloader="${bootloader:-OpenCore-v21.iso.gz}"
             file=$(ls "/config/bootloader/$stock_bootloader" 2>/dev/null)
 

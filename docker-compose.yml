@@ -23,9 +23,9 @@ services:
       # vDisk Size (e.g., 256G)
       - vdisksize=256G
       
-      # Stock bootloader to use from Macinabox/bootloader/
-      # Unraid (default): OpenCore-v21.iso.gz
-      # Proxmox:          opencore-osx-proxmox-vm.iso.gz
+      # Stock bootloader (OpenCore build) to use from Macinabox/bootloader/
+      # Default OpenCore-v21.iso.gz supports Sonoma and earlier.
+      # For macOS Sequoia use the newer OpenCore build (upstream PR #98):
       # - bootloader=opencore-osx-proxmox-vm.iso.gz
       
       # Delete and replace OpenCore (yes/no)
