@@ -23,6 +23,11 @@ services:
       # vDisk Size (e.g., 256G)
       - vdisksize=256G
       
+      # Stock bootloader to use from Macinabox/bootloader/
+      # Unraid (default): OpenCore-v21.iso.gz
+      # Proxmox:          opencore-osx-proxmox-vm.iso.gz
+      # - bootloader=opencore-osx-proxmox-vm.iso.gz
+      
       # Delete and replace OpenCore (yes/no)
       - replaceopencore=yes
       

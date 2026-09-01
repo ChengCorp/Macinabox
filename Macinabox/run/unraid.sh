@@ -215,7 +215,10 @@ makeopencore() {
             echo "No custom OpenCore .iso.gz file found, using stock version"
 
             # location of stock in container
-            file=$(ls /config/bootloader/opencore-osx-proxmox-vm.iso.gz 2>/dev/null)
+            # $bootloader (set in the template / compose environment) selects which stock
+            # bootloader to use; default keeps upstream OpenCore build for Unraid
+            stock_bootloader="${bootloader:-OpenCore-v21.iso.gz}"
+            file=$(ls "/config/bootloader/$stock_bootloader" 2>/dev/null)
 
             if [ -n "$file" ]; then
                 echo "Extracting stock OpenCore from $file"
