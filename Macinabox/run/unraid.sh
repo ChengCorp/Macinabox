@@ -393,9 +393,18 @@ strip_amd_cpu_quirks() {
         sed -i "/name='topoext'/d" "$xml"
     fi
 
+    # Normalise the topology rather than deleting it. Deleting it lets libvirt
+    # fall back to one socket per vCPU -- verified live as
+    # `-smp 4,sockets=4,cores=1,threads=1` -- and no Mac has ever had four
+    # sockets. What macOS actually cannot cope with is the dies/clusters form
+    # libvirt emits from host-passthrough on AMD, so rewrite to the
+    # single-socket shape every macOS-on-KVM guide specifies.
     if grep -q '<topology ' "$xml"; then
-        echo "AMD host: removing the topology line (required for any CPU model newer than Penryn)"
-        sed -i '/<topology .*\/>/d' "$xml"
+        local vcpus
+        vcpus=$(sed -n "s#.*<vcpu placement='static'>\([0-9]\{1,\}\)</vcpu>.*#\1#p" "$xml" | head -1)
+        [ -n "$vcpus" ] || vcpus=2
+        echo "AMD host: normalising CPU topology to sockets=1 cores=$vcpus threads=1"
+        sed -i "s#<topology [^/]*/>#<topology sockets='1' cores='$vcpus' threads='1'/>#" "$xml"
     fi
 }
 
