@@ -218,7 +218,7 @@ makeopencore() {
             # $bootloader (set in the template / compose environment) selects which stock
             # OpenCore build to use. The default supports Sonoma and earlier; set
             # opencore-osx-proxmox-vm.iso.gz for macOS Sequoia.
-            stock_bootloader="${bootloader:-OpenCore-v21.iso.gz}"
+            stock_bootloader="${bootloader:-${DEFAULT_BOOTLOADER:-OpenCore-v21.iso.gz}}"
             file=$(ls "/config/bootloader/$stock_bootloader" 2>/dev/null)
 
             if [ -n "$file" ]; then
@@ -347,7 +347,20 @@ qemu-img create -f raw "$nvram_file" 64k
 # Applied only when the host is AMD AND $CPUARGS is still the stock Penryn default,
 # so a deliberate override in the template is never second-guessed.
 
-AMD_CPUARGS='Haswell-noTSX,vendor=GenuineIntel,+invtsc,+hypervisor,kvm=on,vmware-cpuid-freq=on'
+# Verified working on an AMD Ryzen 7 PRO 6850H (2026-09-03): this exact triple
+# boots macOS Ventura Recovery to a usable desktop. All three parts are required.
+AMD_CPUARGS='host,vendor=GenuineIntel,+hypervisor,+invtsc,kvm=on,+fma,+avx,+avx2,+aes,+ssse3,+sse4_2,+popcnt,+sse4a,+bmi1,+bmi2'
+AMD_BOOTLOADER='opencore-osx-proxmox-vm.iso.gz'
+
+# macOS on AMD needs the algrey "Force cpuid_cores_per_package" kernel patches,
+# whose Replace bytes encode the physical core count in hex. The bootloader we
+# ship carries the cpuid_set_cpufamily patches but NOT the core-count ones, so
+# any count above 1 makes the kernel spin: measured live at ~3.9 cores busy with
+# a frozen screen for 420s on 4 vCPUs, versus 0 CPU and a working Recovery
+# desktop on 1. Raise this only after adding those patches to the bootloader.
+AMD_VCPUS="${amdvcpus:-1}"
+
+DEFAULT_BOOTLOADER="OpenCore-v21.iso.gz"
 AMD_PROFILE_APPLIED="no"
 
 host_cpu_vendor() {
@@ -374,6 +387,8 @@ apply_host_cpu_profile() {
             echo "  from: $CPUARGS"
             echo "    to: $AMD_CPUARGS"
             CPUARGS="$AMD_CPUARGS"
+            DEFAULT_BOOTLOADER="$AMD_BOOTLOADER"
+            echo "AMD host: default bootloader is $AMD_BOOTLOADER (carries the algrey AMD kernel patches; OpenCore-v21 does not)"
             AMD_PROFILE_APPLIED="yes"
             ;;
         *)
@@ -403,6 +418,13 @@ strip_amd_cpu_quirks() {
         local vcpus
         vcpus=$(sed -n "s#.*<vcpu placement='static'>\([0-9]\{1,\}\)</vcpu>.*#\1#p" "$xml" | head -1)
         [ -n "$vcpus" ] || vcpus=2
+        if [ "$vcpus" -gt "$AMD_VCPUS" ] 2>/dev/null; then
+            echo "AMD host: clamping $vcpus vCPUs to $AMD_VCPUS (see AMD_VCPUS note; raise with the amdvcpus variable)"
+            vcpus="$AMD_VCPUS"
+            sed -i "s#<vcpu placement='static'>[0-9]*</vcpu>#<vcpu placement='static'>$vcpus</vcpu>#" "$xml"
+            # per-vCPU pinning for a count we just reduced would be invalid
+            sed -i '/<cputune>/,/<\/cputune>/d' "$xml"
+        fi
         echo "AMD host: normalising CPU topology to sockets=1 cores=$vcpus threads=1"
         sed -i "s#<topology [^/]*/>#<topology sockets='1' cores='$vcpus' threads='1'/>#" "$xml"
     fi
