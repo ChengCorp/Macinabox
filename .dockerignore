@@ -1,0 +1,8 @@
+# The Dockerfile does `COPY . /app`, so anything not excluded here ships in the image.
+# The git pack alone is ~164 MiB (two OpenCore ISOs plus a deleted third in history).
+.git
+.github
+.gitignore
+.dockerignore
+ci
+_doc
