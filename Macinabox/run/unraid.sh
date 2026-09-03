@@ -381,6 +381,11 @@ host_cpu_vendor() {
 }
 
 apply_host_cpu_profile() {
+    # Idempotent: it is called early (from collect_info, before makeopencore
+    # chooses a bootloader) and again from each XML path, so a second call must
+    # not re-log or re-evaluate.
+    [ "$AMD_PROFILE_APPLIED" = "yes" ] && return 0
+
     local vendor
     vendor="$(host_cpu_vendor)"
     echo "Host CPU vendor is $vendor"
@@ -624,6 +629,14 @@ echo "Highest Q35 machine type available is $highest_q35"
 # find out what vm defualt network type is
 get_vm_network
 echo "The default VM network type is $BRNAME"
+
+# Resolve the host-CPU profile HERE, before makeopencore picks a bootloader.
+# Ordering matters and was wrong once: the profile used to run only in the XML
+# paths, which happen AFTER makeopencore, so an AMD host silently installed
+# OpenCore-v21 (no algrey patches) while logging that it had chosen the AMD
+# bootloader. Verified on a fresh 2026-09-03 build: the VM got the 157286400-byte
+# v21 image rather than the 100663296-byte AMD one.
+apply_host_cpu_profile
 }
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
