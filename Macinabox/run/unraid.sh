@@ -305,8 +305,11 @@ sed -i "s#<source bridge='XXX'/>#<source bridge='$BRNAME'/>#" "$XML_FILE"
 # set the NIC model type for the vm
 sed -i "s#<model type='XXXXXXX'/>#<model type='$overridenic'/>#" "$XML_FILE"
 
+apply_host_cpu_profile
+
 # set the specific qemu argument with the value of $CPUARGS from the template
 sed -i "s#<qemu:arg value='XXXXXX'/>#<qemu:arg value='$CPUARGS'/>#" "$XML_FILE"
+strip_amd_cpu_quirks "$XML_FILE"
 
 # check for vhostX network source and change network block to suit
 if [[ $BRNAME =~ ^vhost[0-9]+$ ]]; then
@@ -326,6 +329,75 @@ qemu-img create -f raw "$nvram_file" 64k
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Fix or update the xml of existing VM if VM already present     # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Host-CPU vendor profile                                                          #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#
+# Upstream applies $CPUARGS blind: the stock template ships Penryn-based Intel
+# arguments and this script has no host detection at all. On an AMD host libvirt
+# additionally expands <cpu mode='host-passthrough'> into an AMD-only
+# <feature name='topoext'/> plus a dies/clusters topology that macOS does not
+# expect -- the "AMD kernel panic with multiple cores" class on the support thread.
+#
+# macOS reads CPU topology from ACPI only for Penryn. For any newer model it reads
+# MSR 0x35, which KVM does not implement, and panics. So switching off Penryn
+# REQUIRES removing the topology line as well; the two changes go together.
+#
+# Applied only when the host is AMD AND $CPUARGS is still the stock Penryn default,
+# so a deliberate override in the template is never second-guessed.
+
+AMD_CPUARGS='Haswell-noTSX,vendor=GenuineIntel,+invtsc,+hypervisor,kvm=on,vmware-cpuid-freq=on'
+AMD_PROFILE_APPLIED="no"
+
+host_cpu_vendor() {
+    local cpuinfo="${CPUINFO:-/proc/cpuinfo}"
+    if grep -qi 'AuthenticAMD' "$cpuinfo" 2>/dev/null; then
+        echo "AMD"
+    elif grep -qi 'GenuineIntel' "$cpuinfo" 2>/dev/null; then
+        echo "Intel"
+    else
+        echo "unknown"
+    fi
+}
+
+apply_host_cpu_profile() {
+    local vendor
+    vendor="$(host_cpu_vendor)"
+    echo "Host CPU vendor is $vendor"
+
+    [ "$vendor" = "AMD" ] || return 0
+
+    case "$CPUARGS" in
+        Penryn*)
+            echo "AMD host: stock Penryn arguments detected, switching to the AMD profile"
+            echo "  from: $CPUARGS"
+            echo "    to: $AMD_CPUARGS"
+            CPUARGS="$AMD_CPUARGS"
+            AMD_PROFILE_APPLIED="yes"
+            ;;
+        *)
+            echo "AMD host: \$CPUARGS is not the stock Penryn default, leaving it unchanged"
+            ;;
+    esac
+}
+
+# Strip the host-passthrough leftovers macOS cannot cope with. Only fires when the
+# AMD profile above actually replaced the CPU model.
+strip_amd_cpu_quirks() {
+    local xml="$1"
+    [ "$AMD_PROFILE_APPLIED" = "yes" ] || return 0
+
+    if grep -q "name='topoext'" "$xml"; then
+        echo "AMD host: removing the topoext CPU feature"
+        sed -i "/name='topoext'/d" "$xml"
+    fi
+
+    if grep -q '<topology ' "$xml"; then
+        echo "AMD host: removing the topology line (required for any CPU model newer than Penryn)"
+        sed -i '/<topology .*\/>/d' "$xml"
+    fi
+}
 
 restorexml() {
 
@@ -372,8 +444,11 @@ restorexml() {
       <qemu:arg value=\"XXXXXX\"/>\\
     </qemu:commandline>" "$XML_FILE"
 
+    apply_host_cpu_profile
+
     # replace the xxxxx with the value of $CPUARGS from template
     sed -i "s#<qemu:arg value=\"XXXXXX\"/>#<qemu:arg value=\"$CPUARGS\"/>#" "$XML_FILE"
+    strip_amd_cpu_quirks "$XML_FILE"
 
     # fix the adress line for macos to have corect network ability
     awk -v required_address="$REQUIRED_ADDRESS" '
@@ -954,8 +1029,8 @@ if [ "$flavour" == "High Sierra" ] ; then
     collect_info
     DOMAIN=/domains/"$NAME"
     overridenic="e1000-82545em"
-    restorexml
     replaceopencore
+    restorexml
     pullhsierra
     autoinstall
 elif [ "$flavour" == "Mojave" ] ; then
@@ -964,8 +1039,8 @@ elif [ "$flavour" == "Mojave" ] ; then
     collect_info
     DOMAIN=/domains/"$NAME"
     overridenic="e1000-82545em"
-    restorexml
     replaceopencore
+    restorexml
     pullmojave
     autoinstall
 elif [ "$flavour" == "Catalina" ] ; then
@@ -974,8 +1049,8 @@ elif [ "$flavour" == "Catalina" ] ; then
     collect_info
     DOMAIN=/domains/"$NAME"
     overridenic="e1000-82545em"
-    restorexml
     replaceopencore
+    restorexml
     pullcatalina
     autoinstall
 elif [ "$flavour" == "Big Sur" ] ; then
@@ -986,8 +1061,8 @@ elif [ "$flavour" == "Big Sur" ] ; then
     if [ "$overridenic" = "e1000-82545em" ]; then
         overridenic="virtio-net"
     fi
-    restorexml
     replaceopencore
+    restorexml
     pullbigsur
     autoinstall
 elif [ "$flavour" == "Monterey" ] ; then
@@ -998,8 +1073,8 @@ elif [ "$flavour" == "Monterey" ] ; then
     if [ "$overridenic" = "e1000-82545em" ]; then
         overridenic="virtio-net"
     fi
-    restorexml
     replaceopencore
+    restorexml
     pullmonterey
     autoinstall
 elif [ "$flavour" == "Ventura" ] ; then
@@ -1010,8 +1085,8 @@ elif [ "$flavour" == "Ventura" ] ; then
     if [ "$overridenic" = "e1000-82545em" ]; then
         overridenic="virtio-net"
     fi
-    restorexml
     replaceopencore
+    restorexml
     pullventura
     autoinstall
 elif [ "$flavour" == "Sonoma" ] ; then
@@ -1022,8 +1097,8 @@ elif [ "$flavour" == "Sonoma" ] ; then
     if [ "$overridenic" = "e1000-82545em" ]; then
         overridenic="virtio-net"
     fi
-    restorexml
     replaceopencore
+    restorexml
     pullsonoma
     autoinstall
 elif [ "$flavour" == "Sequoia" ] ; then
@@ -1034,8 +1109,8 @@ elif [ "$flavour" == "Sequoia" ] ; then
     if [ "$overridenic" = "e1000-82545em" ]; then
         overridenic="virtio-net"
     fi
-    restorexml
     replaceopencore
+    restorexml
     pullsequoia
     autoinstall
 else
