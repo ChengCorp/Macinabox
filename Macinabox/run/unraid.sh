@@ -347,18 +347,24 @@ qemu-img create -f raw "$nvram_file" 64k
 # Applied only when the host is AMD AND $CPUARGS is still the stock Penryn default,
 # so a deliberate override in the template is never second-guessed.
 
-# Verified working on an AMD Ryzen 7 PRO 6850H (2026-09-03): this exact triple
-# boots macOS Ventura Recovery to a usable desktop. All three parts are required.
-AMD_CPUARGS='host,vendor=GenuineIntel,+hypervisor,+invtsc,kvm=on,+fma,+avx,+avx2,+aes,+ssse3,+sse4_2,+popcnt,+sse4a,+bmi1,+bmi2'
+# Verified on an AMD Ryzen 7 PRO 6850H (2026-09-03): macOS Ventura 13.7.8
+# installs and boots to a working desktop with FOUR vCPUs using these two
+# settings together.
+#
+# The CPU model is the load-bearing part. `-cpu host` passthrough plus a long
+# feature list does NOT boot multi-core on AMD: it dies in _cpu_thread_alloc
+# (a divide-by-zero, surfaced by testing host,l3-cache=off). A NAMED Intel model
+# with a short flag list does. This matches thenickdude/KVM-Opencore#37, where
+# iansherr went from a hard 1-vcore ceiling to 8 cores on Ryzen and reported
+# "the problem wasn't with OpenCore, but instead with the CPU args".
+AMD_CPUARGS='Cascadelake-Server,vendor=GenuineIntel,+invtsc,kvm=on,vmware-cpuid-freq=on'
 AMD_BOOTLOADER='opencore-osx-proxmox-vm.iso.gz'
 
-# macOS on AMD needs the algrey "Force cpuid_cores_per_package" kernel patches,
-# whose Replace bytes encode the physical core count in hex. The bootloader we
-# ship carries the cpuid_set_cpufamily patches but NOT the core-count ones, so
-# any count above 1 makes the kernel spin: measured live at ~3.9 cores busy with
-# a frozen screen for 420s on 4 vCPUs, versus 0 CPU and a working Recovery
-# desktop on 1. Raise this only after adding those patches to the bootloader.
-AMD_VCPUS="${amdvcpus:-1}"
+# vCPU count is NOT clamped. With the CPU args above, 4 vCPUs boot fine and no
+# cpuid_cores_per_package kernel patch is needed -- the shipped bootloader's
+# stock patch set is sufficient. Set `amdvcpus` only to pin a specific count;
+# unset means honour whatever the template asked for.
+AMD_VCPUS="${amdvcpus:-0}"
 
 DEFAULT_BOOTLOADER="OpenCore-v21.iso.gz"
 AMD_PROFILE_APPLIED="no"
@@ -418,8 +424,8 @@ strip_amd_cpu_quirks() {
         local vcpus
         vcpus=$(sed -n "s#.*<vcpu placement='static'>\([0-9]\{1,\}\)</vcpu>.*#\1#p" "$xml" | head -1)
         [ -n "$vcpus" ] || vcpus=2
-        if [ "$vcpus" -gt "$AMD_VCPUS" ] 2>/dev/null; then
-            echo "AMD host: clamping $vcpus vCPUs to $AMD_VCPUS (see AMD_VCPUS note; raise with the amdvcpus variable)"
+        if [ "$AMD_VCPUS" -gt 0 ] 2>/dev/null && [ "$vcpus" -ne "$AMD_VCPUS" ] 2>/dev/null; then
+            echo "AMD host: amdvcpus is set, pinning $vcpus vCPUs to $AMD_VCPUS"
             vcpus="$AMD_VCPUS"
             sed -i "s#<vcpu placement='static'>[0-9]*</vcpu>#<vcpu placement='static'>$vcpus</vcpu>#" "$xml"
             # per-vCPU pinning for a count we just reduced would be invalid
