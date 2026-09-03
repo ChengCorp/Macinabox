@@ -543,6 +543,7 @@ def main():
             {"name": "Ventura (13) - RECOMMENDED", "b": "Mac-4B682C642B45593E", "m": "00000000000000000", "os_type": "latest", "short": "ventura"},
             {"name": "Sonoma (14) ", "b": "Mac-827FAC58A8FDFA22", "m": "00000000000000000", "short": "sonoma"},
             {"name": "Sequoia (15) ", "b": "Mac-7BA5B2D9E42DDD94", "m": "00000000000000000", "short": "sequoia", "os_type": "latest"},
+            {"name": "Tahoe (26) ", "b": "Mac-CFF7D910A743CAAF", "m": "00000000000000000", "short": "tahoe", "os_type": "latest"},
     ]
     for index, product in enumerate(products):
         name = product["name"]

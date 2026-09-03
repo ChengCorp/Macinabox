@@ -976,6 +976,46 @@ fi
 		fi
 	
 		}
+
+		pulltahoe() {
+
+			if [ ! -e "/isos/${ISONAME}-install.img" ] ; then
+				echo "I am going to download the Tahoe recovery media. Please be patient!"
+			    echo "."
+			    echo "."
+		    
+			        # run the Python script
+        echo 9 | python3 ./fetch-macOS-v2.py
+        status=$?
+
+        # check the exit status
+        if [ $status -ne 0 ]; then
+            # if there is an error,  send an error notification
+            chroot /host /usr/bin/php /usr/local/emhttp/webGui/scripts/notify \
+                -e "Macinabox Container" \
+                -s "$NAME" \
+                -d "Something went wrong downloading the media" \
+                -i "warning" \
+                -m "The error code is $status"
+            exit 1  
+        else
+            #  send a success notification
+            chroot /host /usr/bin/php /usr/local/emhttp/webGui/scripts/notify \
+                -e "Macinabox Container" \
+                -s "$NAME" \
+                -d "The recovery media has been downloaded" \
+                -i "normal" \
+                -m "It has been put in /isos/$NAME-install.img. Now I will setup your VM"
+        fi
+		
+		else
+			echo "Media already exists. I have already downloaded the Tahoe install media before"
+		    echo "."
+		    echo "."
+
+		fi
+	
+		}
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -1162,6 +1202,18 @@ elif [ "$flavour" == "Sequoia" ] ; then
     replaceopencore
     restorexml
     pullsequoia
+    autoinstall
+elif [ "$flavour" == "Tahoe" ] ; then
+    NAME="Tahoe"
+    check_and_set_name
+    collect_info
+    DOMAIN=/domains/"$NAME"
+    if [ "$overridenic" = "e1000-82545em" ]; then
+        overridenic="virtio-net"
+    fi
+    replaceopencore
+    restorexml
+    pulltahoe
     autoinstall
 else
     echo "I don't know what OS to try and download? Is your template correct?"
