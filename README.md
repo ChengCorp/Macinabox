@@ -1,4 +1,19 @@
 # Macinabox
+
+> **This is `ChengCorp/Macinabox`, a fork.** It diverges from `SpaceinvaderOne/Macinabox` (last
+> upstream commit 2024-11-06) in three ways that matter:
+>
+> - **AMD hosts are supported.** Upstream shipped Intel CPU arguments unconditionally. This fork
+>   detects the host vendor and applies a profile that boots macOS multi-core on AMD. The
+>   configuration is non-obvious and is documented at [`docs/AMD-HOSTS.md`](docs/AMD-HOSTS.md).
+>   **Read that before changing the CPU or bootloader handling.**
+> - **Sequoia and Tahoe are selectable**, via a newer OpenCore image and a widened kernel range.
+> - **Container updates actually reach existing installs.** Upstream copied its payload into
+>   `/config` on first run only, so once a VM existed every later image shipped to nobody.
+>
+> Delivered from a private registry through Concourse rather than Docker Hub. CI runs static
+> analysis, builds, smoke-tests the built image's contents, and gates promotion on that smoke job.
+
 Macinabox downloads and installs various macOS versions as a VM on your Unraid server. With this new version, there’s no need for additional helper scripts. It will fully automate the installation of the VM, create the XML file. It can get various details from your server to use in the VM creation such as seeing latest q35 available on your server and make sure VM uses that. All you need to do is choose the macOS version, specify the VM storage location, ISO location, and the container will handle the rest.
 If you make any changes to the VM in the Unraid VM manager if you rerun the container it will fix any incorrect XML. Also if you have changed CPU core count it will check wether the VM should keep or remove the topology line to ensure the VM boots correctly.
 
@@ -13,6 +28,8 @@ Set this to "Yes" if you are running on Apple hardware. This is the only way to 
 
 **Operating System Version:**  
 Choose the macOS version from the options below:
+- Tahoe *(fork only)*
+- Sequoia *(fork only)*
 - Sonoma
 - Ventura
 - Monterey
@@ -20,6 +37,9 @@ Choose the macOS version from the options below:
 - Catalina
 - Mojave
 - High Sierra
+
+Tahoe and Sequoia need `bootloader=opencore-osx-proxmox-vm.iso.gz`, which is the default resolved
+for AMD hosts. See [`docs/AMD-HOSTS.md`](docs/AMD-HOSTS.md).
 
 **Custom VM Name:**  
 Use this if you want the VM name to differ from the OS version. Leave blank to use the OS name.
