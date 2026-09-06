@@ -4,8 +4,8 @@ This fork boots macOS on AMD hardware. The configuration below was arrived at em
 AMD Ryzen 7 PRO 6850H (Zen 3+, family 19h) under Unraid 7.2.4, and several parts of it are
 counter-intuitive. **Do not "tidy" them without reproducing the failure first.**
 
-The `smoke-image` CI job asserts the load-bearing strings, so a regression fails the build rather
-than surfacing later as a guest that will not boot. This file explains why they matter.
+CI asserts the load-bearing strings, so a regression fails the build rather than surfacing later
+as a guest that will not boot. This file explains why they matter.
 
 ## The configuration
 

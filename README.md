@@ -11,8 +11,9 @@
 > - **Container updates actually reach existing installs.** Upstream copied its payload into
 >   `/config` on first run only, so once a VM existed every later image shipped to nobody.
 >
-> Delivered from a private registry through Concourse rather than Docker Hub. CI runs static
-> analysis, builds, smoke-tests the built image's contents, and gates promotion on that smoke job.
+> This fork is not published to Docker Hub. Build the image yourself with
+> `docker build -t macinabox .` and point the Unraid template at the result. CI runs static
+> analysis and smoke-tests the built image's contents before promoting it.
 
 Macinabox downloads and installs various macOS versions as a VM on your Unraid server. With this new version, there’s no need for additional helper scripts. It will fully automate the installation of the VM, create the XML file. It can get various details from your server to use in the VM creation such as seeing latest q35 available on your server and make sure VM uses that. All you need to do is choose the macOS version, specify the VM storage location, ISO location, and the container will handle the rest.
 If you make any changes to the VM in the Unraid VM manager if you rerun the container it will fix any incorrect XML. Also if you have changed CPU core count it will check wether the VM should keep or remove the topology line to ensure the VM boots correctly.
